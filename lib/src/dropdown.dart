@@ -5,9 +5,6 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter/foundation.dart';
 
-// please copy some trouble to
-// /Users/hagiomasahiko/.pub-cache/hosted/pub.dartlang.org/dropdown_plus-0.0.9/lib/src/dropdown.dart
-
 class DropdownEditingController<T> extends ChangeNotifier {
   T? _value;
   DropdownEditingController({T? value}) : _value = value;
@@ -69,6 +66,9 @@ class DropdownFormField<T> extends StatefulWidget {
   /// Style the search box text
   final TextStyle? searchTextStyle;
 
+  /// Cursor color of the search box
+  final Color? cursorColor;
+
   /// Message to disloay if the search dows not match with any item, Default : "No matching found!"
   final String emptyText;
 
@@ -76,7 +76,10 @@ class DropdownFormField<T> extends StatefulWidget {
   final String emptyActionText;
 
   /// this functon triggers on click of emptyAction button
-  final Future<void> Function()? onEmptyActionPressed;
+  final Future<void> Function(String value)? onEmptyActionPressed;
+
+  /// Separator between the dropdown items
+  final Widget? dropdownItemSeparator;
 
   DropdownFormField({
     Key? key,
@@ -93,9 +96,11 @@ class DropdownFormField<T> extends StatefulWidget {
     this.onSaved,
     this.dropdownHeight,
     this.searchTextStyle,
+    this.cursorColor,
     this.emptyText = "No matching found!",
     this.emptyActionText = 'Create new',
     this.onEmptyActionPressed,
+    this.dropdownItemSeparator,
     this.selectedFn,
   }) : super(key: key);
 
@@ -132,7 +137,7 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
   DropdownEditingController<dynamic>? get _effectiveController =>
       widget.controller ?? _controller;
 
-  DropdownFormFieldState() : super() {}
+  DropdownFormFieldState() : super();
 
   @override
   void initState() {
@@ -182,7 +187,9 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
           child: FormField(
             validator: (str) {
               if (widget.validator != null) {
-                widget.validator!(_effectiveController!.value);
+                return widget.validator!(_effectiveController!.value);
+              } else {
+                return null;
               }
             },
             onSaved: (str) {
@@ -201,9 +208,10 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
                 isFocused: _isFocused,
                 child: this._overlayEntry != null
                     ? EditableText(
-                        style: TextStyle(fontSize: 14, color: _textcolor()),
+                        style: widget.searchTextStyle ??
+                            TextStyle(fontSize: 16, color: Colors.black87),
                         controller: _searchTextController,
-                        cursorColor: _cursolcolor(),
+                        cursorColor: widget.cursorColor ?? Colors.black87,
                         focusNode: _searchFocusNode,
                         backgroundCursorColor: Colors.transparent,
                         onChanged: (str) {
@@ -245,14 +253,18 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
           child: Material(
               elevation: 4.0,
               child: SizedBox(
-                height: widget.dropdownHeight ?? 240,
+                height: widget.dropdownHeight ?? null,
                 child: Container(
-                    color: widget.dropdownColor ?? Colors.white,
+                    color: widget.dropdownColor ?? Colors.white70,
                     child: ValueListenableBuilder(
                         valueListenable: _listItemsValueNotifier,
                         builder: (context, List<T> items, child) {
                           return _options != null && _options!.length > 0
-                              ? ListView.builder(
+                              ? ListView.separated(
+                                  separatorBuilder: (context, index) {
+                                    return widget.dropdownItemSeparator ??
+                                        Container();
+                                  },
                                   shrinkWrap: true,
                                   padding: EdgeInsets.zero,
                                   itemCount: _options!.length,
@@ -292,7 +304,8 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
                                         TextButton(
                                           onPressed: () async {
                                             await widget
-                                                .onEmptyActionPressed!();
+                                                .onEmptyActionPressed!(_searchTextController
+                                                .value.text);
                                             _search(_searchTextController
                                                 .value.text);
                                           },
@@ -331,8 +344,7 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
       _overlayEntry = _createOverlayEntry();
       if (_overlayEntry != null) {
         // Overlay.of(context)!.insert(_overlayEntry!);
-        Overlay.of(context)!
-            .insertAll([_overlayBackdropEntry!, _overlayEntry!]);
+        Overlay.of(context).insertAll([_overlayBackdropEntry!, _overlayEntry!]);
         setState(() {
           _searchFocusNode.requestFocus();
         });
@@ -370,38 +382,33 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
   }
 
   _onKeyPressed(RawKeyEvent event) {
-    //print('_onKeyPressed : ${event.character}');
-    if (event.logicalKey == LogicalKeyboardKey.enter) {
+    // print('_onKeyPressed : ${event.character}');
+    if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
       if (_searchFocusNode.hasFocus) {
         _toggleOverlay();
       } else {
         _toggleOverlay();
       }
-      //return false;
       return KeyEventResult.ignored;
-    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+    } else if (event.isKeyPressed(LogicalKeyboardKey.escape)) {
       _removeOverlay();
       return KeyEventResult.handled;
-      //return true;
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+    } else if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
       int v = _listItemFocusedPosition;
       v++;
       if (v >= _options!.length) v = 0;
       _listItemFocusedPosition = v;
       _listItemsValueNotifier.value = List<T>.from(_options ?? []);
-      //return true;
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+    } else if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
       int v = _listItemFocusedPosition;
       v--;
       if (v < 0) v = _options!.length - 1;
       _listItemFocusedPosition = v;
       _listItemsValueNotifier.value = List<T>.from(_options ?? []);
-      //return true;
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
-    //return false;
   }
 
   _search(String str) async {
@@ -419,13 +426,15 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
   }
 
   _setValue() {
-    var item = _options![_listItemFocusedPosition];
-    _selectedItem = item;
+    if (_options != null && _options!.isNotEmpty) {
+      var item = _options![_listItemFocusedPosition];
+      _selectedItem = item;
 
-    _effectiveController!.value = _selectedItem;
+      _effectiveController!.value = _selectedItem;
 
-    if (widget.onChanged != null) {
-      widget.onChanged!(_selectedItem);
+      if (widget.onChanged != null) {
+        widget.onChanged!(_selectedItem);
+      }
     }
 
     setState(() {});
@@ -439,23 +448,5 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
       widget.onChanged!(_selectedItem);
     }
     _searchTextController.value = TextEditingValue(text: "");
-  }
-
-  Color _cursolcolor() {
-    var color = Colors.blue;
-    var sys = MediaQuery.platformBrightnessOf(context).toString();
-    if (sys == 'Brightness.dark') {
-      color = Colors.blue;
-    }
-    return color;
-  }
-
-  Color _textcolor() {
-    var color = Colors.black;
-    var sys = MediaQuery.platformBrightnessOf(context).toString();
-    if (sys == 'Brightness.dark') {
-      color = Colors.white;
-    }
-    return color;
   }
 }
