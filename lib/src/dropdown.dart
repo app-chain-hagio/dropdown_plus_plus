@@ -216,11 +216,12 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
                         backgroundCursorColor: Colors.transparent,
                         onChanged: (str) {
                            setState(() {
+                             print(str);
                           if (_overlayEntry == null) {
                             _addOverlay();
                           }
                           _onTextChanged(str);
-                             });
+                        });
                         },
                         onSubmitted: (str) {
                           _searchTextController.value =
