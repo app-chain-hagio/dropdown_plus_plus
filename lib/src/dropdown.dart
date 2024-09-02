@@ -149,11 +149,6 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
     _searchFocusNode.addListener(() {
       if (!_searchFocusNode.hasFocus && _overlayEntry != null) {
         _removeOverlay();
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Maybe also check if overlayEntry.mounted is true.
-          _overlayEntry?.remove();
-        });
       }
     });
   }
@@ -308,9 +303,9 @@ class DropdownFormFieldState<T> extends State<DropdownFormField>
                                       if (widget.onEmptyActionPressed != null)
                                         TextButton(
                                           onPressed: () async {
-                                            await widget.onEmptyActionPressed!(
-                                                _searchTextController
-                                                    .value.text);
+                                            await widget
+                                                .onEmptyActionPressed!(_searchTextController
+                                                .value.text);
                                             _search(_searchTextController
                                                 .value.text);
                                           },
